@@ -1,0 +1,28 @@
+============================================================
+🛠️ INTEGRATION TEST: Hitting Live Server @ localhost:8000
+============================================================
+
+[1/5] Checking Health Endpoint...
+✅ Healthy! Version: 2.0.0
+
+[2/5] Testing Text Query Endpoint (/api/mobile/text-query)...
+✅ Success! (28.75s)
+   Intent: pest_control
+   Answer: c integrated pest management (IPM) strategies 
+like crop rotation, sanitation, biological control, c...
+   Audio URL: None
+
+[3/5] Testing History Endpoint (/api/mobile/history/5)...
+✅ Success! Found 2 history entries.
+   Latest: 'How do I control pests in tomato?' -> 'c management practices like 
+spraying of chlorotha...'
+
+[4/5] Testing Stats Endpoint (/api/mobile/stats/5)...
+✅ Success! Stats: {'total_queries': 2, 'recent_queries': 2, 'voice_queries': 0, 'text_queries': 2, 'most_common_intent': 'pest_control', 'average_processing_time': 23.26, 'languages_used': {'en': 2}}
+
+[5/5] Testing Mobile Health Endpoint (/api/mobile/health-mobile)...
+✅ Success! Services: {'asr': True, 'translator': True, 'rag': True, 'tts': True}
+
+============================================================
+🏁 INTEGRATION TEST COMPLETE
+============================================================

@@ -1,0 +1,38 @@
+﻿
+# Ignore Python Cache
+__pycache__/
+*.pyc
+
+# Ignore Environment
+.env
+.venv/
+venv/
+ENV/
+
+# Ignore ALL Data & Storage (HEAVY FILES)
+Backend/storage/audio/*
+Backend/storage/cache/*
+Backend/storage/chroma_db/*
+Backend/storage/chroma_store/*
+Backend/storage/docs/*
+Backend/storage/logs/*
+Backend/storage/pdfs/*
+Backend/storage/temp/*
+Backend/storage/voice_inputs/*
+Backend/storage/weaviate/*
+Backend/data/*
+
+# Ignore Mobile Build Artifacts (HEAVY)
+Mobile/build/
+Mobile/.dart_tool/
+Mobile/.pub-cache/
+Mobile/.pub/
+Mobile/windows/flutter/ephemeral/
+Mobile/android/.gradle/
+Mobile/ios/.symlinks/
+Mobile/ios/Pods/
+
+# Ignore IDE Configs
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,49 @@
+# Core Framework
+fastapi
+uvicorn[standard]
+python-multipart
+aiofiles
+pydantic
+python-dotenv
+
+# Database
+sqlalchemy>=2.0.25
+psycopg2-binary
+
+# Vector Store (local — no Docker needed)
+chromadb
+
+# AI / ML
+sentence-transformers>=2.2.2
+transformers>=4.36.0
+torch
+accelerate
+openai-whisper
+
+# RAG / LLM
+groq
+
+# Translation
+deep-translator
+
+# Text-to-Speech
+gTTS
+
+# Document Processing
+PyPDF2
+python-docx
+
+# HTTP Client
+httpx
+
+# Caching (optional)
+redis
+
+# Testing
+hypothesis>=6.0.0
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Audio Processing
+pydub
