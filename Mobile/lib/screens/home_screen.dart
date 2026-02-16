@@ -9,7 +9,9 @@ import '../services/audio_service.dart';
 import '../widgets/chat_bubble_widget.dart';
 import '../widgets/voice_orb_widget.dart';
 import 'history_screen.dart';
+import 'history_screen.dart';
 import 'settings_screen.dart';
+import 'mandi_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -45,6 +47,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       parent: _overlayController,
       curve: Curves.easeOut,
     );
+
+    // Auto-login guest if not authenticated
+    Future.microtask(() {
+      final user = ref.read(currentUserProvider).value;
+      if (user == null) {
+        ref.read(currentUserProvider.notifier).loginAsGuest();
+      }
+    });
 
     // Add welcome message
     Future.microtask(() {
@@ -198,6 +208,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       _buildInputBar(),
                     ],
                   ),
+                  // ─── Mandi Tab ───
+                  const MandiScreen(),
                   // ─── History Tab ───
                   const HistoryScreen(),
                   // ─── Settings Tab ───
@@ -852,11 +864,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         unselectedItemColor: AppTheme.textMuted.withValues(alpha: 0.5),
         selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(fontSize: 11),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.chat_bubble_outline_rounded),
             activeIcon: Icon(Icons.chat_bubble_rounded),
             label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.trending_up_rounded),
+            activeIcon: Icon(Icons.analytics_rounded),
+            label: 'Mandi',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history_rounded),

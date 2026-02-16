@@ -52,6 +52,31 @@ class CurrentUserNotifier extends StateNotifier<AsyncValue<User?>> {
     }
   }
 
+
+  Future<void> loginAsGuest() async {
+    state = const AsyncValue.loading();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? deviceId = prefs.getString('device_id');
+      if (deviceId == null) {
+        deviceId = 'guest_${DateTime.now().millisecondsSinceEpoch}';
+        await prefs.setString('device_id', deviceId);
+      }
+      
+      // Auto-register guest
+      // Using the device ID as phone number for uniqueness
+      final response = await _apiService.registerUser(
+        phoneNumber: deviceId,
+        name: 'Guest Farmer',
+        language: 'en',
+      );
+      state = AsyncValue.data(response.user);
+    } catch (e) {
+      print('Guest login failed: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
   void logout() {
     state = const AsyncValue.data(null);
   }

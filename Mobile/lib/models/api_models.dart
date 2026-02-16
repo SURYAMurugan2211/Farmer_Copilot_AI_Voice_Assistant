@@ -196,10 +196,19 @@ class UserResponse {
   UserResponse({required this.success, required this.user});
 
   factory UserResponse.fromJson(Map<String, dynamic> json) {
-    return UserResponse(
-      success: json['success'],
-      user: User.fromJson(json['user']),
-    );
+    // Backend returns direct user object, or wrapped
+    if (json.containsKey('user')) {
+      return UserResponse(
+        success: json['success'] ?? true,
+        user: User.fromJson(json['user']),
+      );
+    } else {
+      // Direct user object from Backend Pydantic model
+      return UserResponse(
+        success: true,
+        user: User.fromJson(json),
+      );
+    }
   }
 }
 
