@@ -4,7 +4,7 @@ Full pipeline: ASR → Translate → NLU → RAG → LLM → Translate → TTS
 Stores both user input audio and response audio with all query data.
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -99,10 +99,10 @@ def _save_input_audio(temp_path: str) -> str:
 
 @router.post("/voice-query")
 async def voice_query(
-    lang: str = "en",
-    user_id: Optional[int] = None,
-    phone_number: Optional[str] = None,
-    session_id: Optional[str] = None,
+    lang: str = Form("en"),
+    user_id: Optional[int] = Form(None),
+    phone_number: Optional[str] = Form(None),
+    session_id: Optional[str] = Form(None),
     file: UploadFile = File(...)
 ):
     """
@@ -116,6 +116,13 @@ async def voice_query(
         # User lookup
         user, user_id = _safe_get_user(phone_number, user_id, lang)
 
+        # ── Step 0: User Preference ──
+        # User's selected language governs the ENTIRE interaction.
+        # We process internally in English, but Input interpretation and Output generation
+        # MUST align with this language.
+        selected_lang = lang if lang != "auto" else "en"
+        print(f"[{time.strftime('%X')}] 🎤 Voice Query: User Selected='{selected_lang}'")
+
         # ── Step 1: Save uploaded audio ──
         temp_path = f"{TMP}/{uuid.uuid4().hex}.wav"
         async with aiofiles.open(temp_path, "wb") as f:
@@ -126,49 +133,50 @@ async def voice_query(
         if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
             raise HTTPException(status_code=400, detail="Audio file is empty or failed to save")
 
-        # Save a permanent copy of the user's voice input
+        # Save a permanent copy
         input_audio_url = _save_input_audio(temp_path)
-        print(f"[1/7] Audio saved: {os.path.getsize(temp_path)} bytes → {input_audio_url}")
 
         # ── Step 2: ASR (Speech → Text) ──
-        asr_result = transcribe(temp_path, language=lang if lang != "auto" else None)
+        # FORCE Whisper to use the selected language.
+        # This ensures if user selected 'ta', we assume they are speaking 'ta'.
+        asr_result = transcribe(temp_path, language=selected_lang)
         transcribed_text = asr_result["text"]
-        detected_lang = asr_result.get("lang", lang)
-        print(f"[2/7] ASR: '{transcribed_text[:60]}...' (lang={detected_lang})")
+        detected_lang = asr_result.get("lang", selected_lang) 
+        print(f"[ASR] Text='{transcribed_text[:60]}...' | Language='{detected_lang}' (Forced: {selected_lang})")
 
-        # ── Step 3: Translate to English (handles mixed-language) ──
-        query_en, source_lang = auto_translate_to_english(transcribed_text, hint_lang=detected_lang)
-        if source_lang != "en":
-            print(f"[3/7] Auto-translated ({source_lang}→en): '{query_en[:60]}...'")
+        # ── Step 3: Translate to English (Internal Processing) ──
+        # We convert to English so the LLM can understand it.
+        if selected_lang != "en":
+            query_en, _ = auto_translate_to_english(transcribed_text, hint_lang=selected_lang)
+            print(f"[Translate] Input ({selected_lang}→en): '{query_en[:60]}...'")
         else:
-            print(f"[3/7] Translate: skipped (already English)")
-        detected_lang = source_lang
+            query_en = transcribed_text
+            print(f"[Translate] Skipped (English)")
 
         # ── Step 4: NLU (Intent + Entities) ──
         intent_result = detect_intent(query_en)
         entities = extract_entities(query_en)
-        print(f"[4/7] NLU: intent={intent_result['intent']}, entities={entities}")
 
         # ── Step 5: RAG (Retrieve + LLM) ──
         retrieved = semantic_search(query_en, k=5)
         answer_en = compose(query_en, retrieved)
-        print(f"[5/7] RAG: {len(retrieved)} docs → answer={answer_en[:60]}...")
+        print(f"[LLM] Answer (en): '{answer_en[:60]}...'")
 
-        # ── Step 6: Translate answer back ──
-        if detected_lang != "en":
-            answer_local = translate(answer_en, "en", detected_lang)
-            print(f"[6/7] Translated (en→{detected_lang}): '{answer_local[:60]}...'")
+        # ── Step 6: Translate Response (en → User Language) ──
+        # STRICTLY translate back to the selected language.
+        if selected_lang != "en":
+            answer_local = translate(answer_en, "en", selected_lang)
+            print(f"[Translate] Output (en→{selected_lang}): '{answer_local[:60]}...'")
         else:
             answer_local = answer_en
-            print(f"[6/7] Translate: skipped (English user)")
 
         # ── Step 7: TTS (Text → Speech) ──
-        tts_lang = detected_lang if detected_lang in ["en", "ta", "hi", "te", "kn", "ml"] else "en"
-        response_audio_relative = synthesize_tts(answer_local, lang=tts_lang)
+        # Generate audio in the selected language.
+        response_audio_relative = synthesize_tts(answer_local, lang=selected_lang)
         response_audio_url = f"http://localhost:8000{response_audio_relative}"
-        print(f"[7/7] TTS: {response_audio_url}")
+        print(f"[TTS] Generated for {selected_lang}: {response_audio_url}")
 
-        # ── Save to DB with full data ──
+        # ── Save to DB ──
         processing_time = time.time() - start_time
         saved_query = _safe_save_query(
             user_id=user_id,
@@ -180,7 +188,7 @@ async def voice_query(
             response_text_en=answer_en,
             input_audio_url=input_audio_url,
             response_audio_url=response_audio_url,
-            language=lang,
+            language=selected_lang,        # Save the FORCED language
             detected_language=detected_lang,
             processing_time=processing_time,
             source_count=len(retrieved),
@@ -232,26 +240,33 @@ async def text_query(payload: MobileQuery):
 
         # ── Step 1: Translate to English ──
         query_en, detected_lang = auto_translate_to_english(payload.text, hint_lang=payload.lang)
+        print(f"[TEXT] Step 1 — Input: '{payload.text[:50]}' | Lang: {payload.lang} | Detected: {detected_lang}")
+        print(f"[TEXT] Step 1 — English: '{query_en[:60]}'")
 
         # ── Step 2: NLU ──
         intent_result = detect_intent(query_en)
         entities = extract_entities(query_en)
+        print(f"[TEXT] Step 2 — Intent: {intent_result}")
 
         # ── Step 3: RAG + LLM ──
         retrieved = semantic_search(query_en, k=5)
         answer_en = compose(query_en, retrieved)
+        print(f"[TEXT] Step 3 — RAG docs: {len(retrieved)} | Answer EN: '{answer_en[:80]}'")
 
-        # ── Step 4: Translate answer back ──
+        # ── Step 4: Translate answer back to user's language ──
         response_lang = payload.lang if payload.lang != "auto" else detected_lang
         if response_lang != "en":
             answer_local = translate(answer_en, "en", response_lang)
+            print(f"[TEXT] Step 4 — Translated (en→{response_lang}): '{answer_local[:60]}'")
         else:
             answer_local = answer_en
+            print(f"[TEXT] Step 4 — No translation needed (English)")
 
         # ── Step 5: TTS ──
         tts_lang = response_lang if response_lang in ["en", "ta", "hi", "te", "kn", "ml"] else "en"
         response_audio_relative = synthesize_tts(answer_local, lang=tts_lang)
         response_audio_url = f"http://localhost:8000{response_audio_relative}"
+        print(f"[TEXT] Step 5 — TTS lang: {tts_lang} | Audio: {response_audio_url}")
 
         # ── Save to DB with full data ──
         processing_time = time.time() - start_time

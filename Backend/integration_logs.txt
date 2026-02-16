@@ -6,19 +6,19 @@
 ✅ Healthy! Version: 2.0.0
 
 [2/5] Testing Text Query Endpoint (/api/mobile/text-query)...
-✅ Success! (28.75s)
+✅ Success! (29.49s)
    Intent: pest_control
-   Answer: c integrated pest management (IPM) strategies 
-like crop rotation, sanitation, biological control, c...
+   Answer: ﬁcally, for the crops like paddy, wheat, and 
+maize, integrated pest management (IPM) practices shou...
    Audio URL: None
 
 [3/5] Testing History Endpoint (/api/mobile/history/5)...
-✅ Success! Found 2 history entries.
+✅ Success! Found 3 history entries.
    Latest: 'How do I control pests in tomato?' -> 'c management practices like 
 spraying of chlorotha...'
 
 [4/5] Testing Stats Endpoint (/api/mobile/stats/5)...
-✅ Success! Stats: {'total_queries': 2, 'recent_queries': 2, 'voice_queries': 0, 'text_queries': 2, 'most_common_intent': 'pest_control', 'average_processing_time': 23.26, 'languages_used': {'en': 2}}
+✅ Success! Stats: {'total_queries': 3, 'recent_queries': 3, 'voice_queries': 0, 'text_queries': 3, 'most_common_intent': 'pest_control', 'average_processing_time': 24.65, 'languages_used': {'en': 3}}
 
 [5/5] Testing Mobile Health Endpoint (/api/mobile/health-mobile)...
 ✅ Success! Services: {'asr': True, 'translator': True, 'rag': True, 'tts': True}

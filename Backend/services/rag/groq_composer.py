@@ -32,38 +32,49 @@ def _init_groq():
         return False
 
 
-SYSTEM_PROMPT = """You are Farmer Copilot — an expert agricultural AI assistant helping Indian farmers.
+SYSTEM_PROMPT = """You are Farmer Copilot — a farming AI assistant for Indian farmers.
 
-Rules:
-1. Answer ONLY based on the provided Context. If the context doesn't cover the question, say so honestly.
-2. Be practical and actionable — give specific advice a farmer can use today.
-3. Keep answers concise (2-4 sentences for simple questions, up to 6 for complex ones).
-4. When relevant, mention crop names, quantities, timing, and local practices.
-5. Do NOT make up facts or statistics."""
+CORE INSTRUCTION:
+Provide a **SHORT and SWEET** answer (max 3 lines) to the farmer's specific question.
+
+RULES FOR USING CONTEXT:
+1. **CRITICAL:** First, check if the provided 'Context' actually answers the specific question.
+2. If the Context is **IRRELEVANT** (e.g., user asks about 'Water Plants' but context is about 'Wheat'), **IGNORE THE CONTEXT COMPLETELY**.
+3. Instead, answer directly from your own **General Agricultural Knowledge**.
+4. If Context IS relevant, combine it with your knowledge for the best answer.
+
+OUTPUT FORMAT:
+• Answer in 2-3 simple bullet points.
+• Be direct. No fluff. No "Hello" or "Here is the answer".
+• **NEVER** dump the raw context if it doesn't match the question.
+
+Example (Good):
+• Water spinach (Kang Kong) and Lotus are excellent for water farming.
+• Lotus is the most profitable choice for varied products (flowers, roots).
+• Ensure clean, stagnant water for best growth.
+
+Answer explicitly and concisely."""
 
 
 def compose(question: str, retrieved: list) -> str:
     """
     Generate an answer using Groq LLaMA with RAG context.
-
-    Args:
-        question: User's question (in English)
-        retrieved: List of dicts from retriever (each has 'text', 'source')
-
-    Returns:
-        Answer string
     """
-    # Build context from retrieved documents
-    if not retrieved:
-        return "I don't have enough information in my knowledge base to answer that question. Please try asking about farming topics like crop management, soil health, irrigation, or pest control."
+    # Support General Knowledge fallback if no docs found
+    # (Do not return early, let the LLM handle it with empty context)
+    # in case retrieved is empty, context_text will be empty string.
 
+    # Build context — only use relevant short snippets
     context_parts = []
-    for i, doc in enumerate(retrieved[:5]):  # Use top 5 docs
-        source = doc.get("source", "unknown")
-        text = doc.get("text", "")
-        context_parts.append(f"[Source: {source}]\n{text}")
+    for doc in retrieved[:3]:  # Only top 3 for focused answers
+        text = doc.get("text", "").strip()
+        # Skip very long or irrelevant chunks
+        if len(text) > 500:
+            text = text[:500]
+        if text:
+            context_parts.append(text)
 
-    context_text = "\n\n---\n\n".join(context_parts)
+    context_text = "\n---\n".join(context_parts)
 
     # Try Groq API
     if _init_groq() and client is not None:
@@ -73,19 +84,31 @@ def compose(question: str, retrieved: list) -> str:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": f"Context:\n{context_text}\n\n---\nFarmer's Question: {question}\n\nAnswer:"
+                        "content": f"Reference info:\n{context_text}\n\nFarmer asks: {question}\n\nGive a short, helpful answer in 2-3 simple sentences:"
                     }
                 ],
                 model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-                temperature=0.5,
-                max_tokens=300,
-                top_p=0.9
+                temperature=0.3,
+                max_tokens=150,
+                top_p=0.85
             )
-            return chat.choices[0].message.content.strip()
+            answer = chat.choices[0].message.content.strip()
+            print(f"✅ Groq answer ({len(answer)} chars): {answer[:80]}...")
+            return answer
 
         except Exception as e:
             print(f"⚠️ Groq API error: {e}")
 
-    # Fallback: return top context directly
-    top_text = retrieved[0].get("text", "")
-    return top_text[:400] + ("..." if len(top_text) > 400 else "")
+    # Smart fallback — don't dump raw text, summarize it
+    if retrieved:
+        top_text = retrieved[0].get("text", "").strip()
+        # Extract just the first meaningful sentence
+        sentences = [s.strip() for s in top_text.replace('\n', '. ').split('.') if len(s.strip()) > 15]
+        if sentences:
+            # Return first 2 relevant sentences
+            fallback = '. '.join(sentences[:2]) + '.'
+            if len(fallback) > 200:
+                fallback = sentences[0] + '.'
+            return fallback
+    
+    return "Sorry, I couldn't process your question right now. Please try again."

@@ -53,11 +53,18 @@ def semantic_search(query: str, k: int = 5) -> List[Dict]:
         if stats["total_documents"] > 0:
             # Use real vector search
             results = vector_search(query, k=k)
-            if results:
-                print(f"🔍 Found {len(results)} results from vector store")
-                return results
+            
+            # Filter results by relevance score (threshold = 0.35)
+            # This prevents returning irrelevant documents (e.g. Wheat info for Water Plant question)
+            relevant_results = [r for r in results if r.get("score", 0) >= 0.35]
+            
+            if relevant_results:
+                print(f"🔍 Found {len(relevant_results)} relevant results (score >= 0.35)")
+                return relevant_results
             else:
-                print("⚠️ Vector search returned no results, using fallback")
+                print(f"⚠️ Vector search found results but scores were too low (< 0.35). Ignored.")
+                # Return empty so LLM uses General Knowledge
+                return []
         else:
             print("📝 Vector store is empty — using fallback knowledge. Run 'python scripts/ingest_pdfs.py' to add your PDFs.")
     except Exception as e:
