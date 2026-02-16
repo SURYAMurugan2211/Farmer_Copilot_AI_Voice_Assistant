@@ -5,6 +5,11 @@ Supports all Indian languages, auto-detection, and mixed-language input.
 
 from deep_translator import GoogleTranslator
 from typing import Optional, Tuple
+import os
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
 
 # Supported language codes
 SUPPORTED_LANGUAGES = {
@@ -20,6 +25,47 @@ SUPPORTED_LANGUAGES = {
     "pa": "punjabi",
     "ur": "urdu",
 }
+
+
+
+def _llm_translate(text: str, src: str, tgt: str) -> Optional[str]:
+    """Use Groq LLaMA for high-accuracy translation."""
+    if not Groq: return None
+        
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key: return None
+
+    try:
+        client = Groq(api_key=api_key)
+        
+        src_name = SUPPORTED_LANGUAGES.get(src, src)
+        tgt_name = SUPPORTED_LANGUAGES.get(tgt, tgt)
+        
+        prompt = f"""Task: Translate from {src_name} to {tgt_name}.
+Input: "{text}"
+Rules:
+1. Translate naturally. Fix obvious typos (e.g. 'pirs' -> 'crops').
+2. Output ONLY the translated text. No quotes.
+"""
+
+        completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.3-70b-versatile",
+            temperature=0.1,
+            max_tokens=1024
+        )
+        
+        result = completion.choices[0].message.content.strip()
+        
+        # Cleanup
+        if not result or len(result) > len(text) * 4: return None
+        if result.startswith('"') and result.endswith('"'): result = result[1:-1]
+        
+        print(f"🤖 LLM Translated ({src}->{tgt}): '{result}'")
+        return result
+    except Exception as e:
+        print(f"⚠️ LLM Translation skipped: {e}")
+        return None
 
 
 def translate(text: str, src: str, tgt: str) -> str:
@@ -45,6 +91,11 @@ def translate(text: str, src: str, tgt: str) -> str:
     if src == tgt and src != "auto":
         return text
 
+    # Upgrade: Try LLM Translation first (High Accuracy)
+    llm_translated = _llm_translate(text, src, tgt)
+    if llm_translated:
+        return llm_translated
+
     try:
         translated = GoogleTranslator(source=src, target=tgt).translate(text)
         return translated if translated else text
@@ -68,17 +119,22 @@ def auto_translate_to_english(text: str, hint_lang: str = None) -> Tuple[str, st
     if not text or not text.strip():
         return text, "en"
 
-    # Step 1: Try to detect the language
-    detected_lang = None
+    # Upgrade: Try Heuristic Detection -> LLM Translation (High Accuracy)
+    detected_lang = _detect_language(text) or hint_lang
+    if detected_lang and detected_lang != "en":
+        llm_en = _llm_translate(text, detected_lang, "en")
+        if llm_en:
+            return llm_en, detected_lang
 
-    # Use Google Translate's auto-detection (handles mixed-language well)
+    # Fallback: Google Translate Auto
     try:
         translator = GoogleTranslator(source="auto", target="en")
         english_text = translator.translate(text)
 
         if english_text:
-            # Detect what language the original was
-            detected_lang = _detect_language(text) or hint_lang or "en"
+            # Detect what language the original was (if not already known)
+            if not detected_lang:
+                detected_lang = _detect_language(text) or "en"
             return english_text, detected_lang
     except Exception as e:
         print(f"Auto-translate failed: {e}")

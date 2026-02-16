@@ -32,49 +32,47 @@ def _init_groq():
         return False
 
 
-SYSTEM_PROMPT = """You are Farmer Copilot — a farming AI assistant for Indian farmers.
+SYSTEM_PROMPT = """You are Farmer Copilot — an expert agricultural assistant.
 
-CORE INSTRUCTION:
-Provide a **SHORT and SWEET** answer (max 3 lines) to the farmer's specific question.
+INSTRUCTIONS:
+1. **Goal:** Answer the farmer's question directly and briefly.
+2. **Style:** Use **Keywords** and **Short Sentences**. Avoid long explanations.
+3. **Length:** Max 2-3 sentences. Focus on the core solution/action.
+4. **No Fluff:** Do not repeat the question. Just give the answer.
 
-RULES FOR USING CONTEXT:
-1. **CRITICAL:** First, check if the provided 'Context' actually answers the specific question.
-2. If the Context is **IRRELEVANT** (e.g., user asks about 'Water Plants' but context is about 'Wheat'), **IGNORE THE CONTEXT COMPLETELY**.
-3. Instead, answer directly from your own **General Agricultural Knowledge**.
-4. If Context IS relevant, combine it with your knowledge for the best answer.
+Example of Style:
+Query: "How to kill aphids?"
+Answer: "Use Neem Oil spray (5ml/liter). You can also use yellow sticky traps to catch them. Remove infected leaves immediately."
 
-OUTPUT FORMAT:
-• Answer in 2-3 simple bullet points.
-• Be direct. No fluff. No "Hello" or "Here is the answer".
-• **NEVER** dump the raw context if it doesn't match the question.
-
-Example (Good):
-• Water spinach (Kang Kong) and Lotus are excellent for water farming.
-• Lotus is the most profitable choice for varied products (flowers, roots).
-• Ensure clean, stagnant water for best growth.
-
-Answer explicitly and concisely."""
+Answer strictly in English (it will be translated)."""
 
 
 def compose(question: str, retrieved: list) -> str:
     """
     Generate an answer using Groq LLaMA with RAG context.
     """
-    # Support General Knowledge fallback if no docs found
-    # (Do not return early, let the LLM handle it with empty context)
-    # in case retrieved is empty, context_text will be empty string.
-
     # Build context — only use relevant short snippets
     context_parts = []
-    for doc in retrieved[:3]:  # Only top 3 for focused answers
+    for doc in retrieved[:3]:  # Top 3 is usually enough
         text = doc.get("text", "").strip()
-        # Skip very long or irrelevant chunks
-        if len(text) > 500:
-            text = text[:500]
+        if len(text) > 800:
+            text = text[:800]
         if text:
             context_parts.append(text)
 
     context_text = "\n---\n".join(context_parts)
+    
+    # Context in User Message
+    user_content = f"""
+CONTEXT INFORMATION:
+{context_text}
+
+USER QUESTION:
+{question}
+
+INSTRUCTION: 
+Based on the context, provide a **Concise, Keyword-Focused Answer** (2-3 sentences max).
+"""
 
     # Try Groq API
     if _init_groq() and client is not None:
@@ -84,13 +82,13 @@ def compose(question: str, retrieved: list) -> str:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": f"Reference info:\n{context_text}\n\nFarmer asks: {question}\n\nGive a short, helpful answer in 2-3 simple sentences:"
+                        "content": user_content
                     }
                 ],
                 model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-                temperature=0.3,
-                max_tokens=150,
-                top_p=0.85
+                temperature=0.3,  # Low temp for stability
+                max_tokens=500,   # Reduced max_tokens for brevity
+                top_p=0.9
             )
             answer = chat.choices[0].message.content.strip()
             print(f"✅ Groq answer ({len(answer)} chars): {answer[:80]}...")
