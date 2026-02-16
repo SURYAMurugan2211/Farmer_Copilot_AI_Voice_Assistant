@@ -34,18 +34,14 @@ def _init_groq():
 
 SYSTEM_PROMPT = """You are Farmer Copilot — an expert agricultural assistant.
 
-INSTRUCTIONS:
-1. **Goal:** Answer the farmer's question directly and briefly.
-2. **Style:** Use **Keywords** and **Short Sentences**. Avoid long explanations.
-3. **Length:** Max 2-3 sentences. Focus on the core solution/action.
-4. **No Fluff:** Do not repeat the question. Just give the answer.
+YOUR GOAL:
+Answer the farmer's question based ONLY on the provided context.
+- Be concise (max 2-3 sentences).
+- Use simple, direct language.
+- Do NOT continue the conversation or generate new questions.
+- Do NOT output "Query:" or "Answer:". Just output the answer text.
 
-Example of Style:
-Query: "How to kill aphids?"
-Answer: "Use Neem Oil spray (5ml/liter). You can also use yellow sticky traps to catch them. Remove infected leaves immediately."
-
-Answer strictly in English (it will be translated)."""
-
+Answer strictly in English."""
 
 def compose(question: str, retrieved: list) -> str:
     """
@@ -60,18 +56,18 @@ def compose(question: str, retrieved: list) -> str:
         if text:
             context_parts.append(text)
 
-    context_text = "\n---\n".join(context_parts)
+    # Use a clear separator that won't confuse the model
+    context_text = "\n\n".join(context_parts)
     
     # Context in User Message
     user_content = f"""
-CONTEXT INFORMATION:
+CONTEXT:
 {context_text}
 
-USER QUESTION:
+QUESTION:
 {question}
 
-INSTRUCTION: 
-Based on the context, provide a **Concise, Keyword-Focused Answer** (2-3 sentences max).
+ANSWER:
 """
 
     # Try Groq API
@@ -80,17 +76,18 @@ Based on the context, provide a **Concise, Keyword-Focused Answer** (2-3 sentenc
             chat = client.chat.completions.create(
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": user_content
-                    }
+                    {"role": "user", "content": user_content}
                 ],
                 model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-                temperature=0.3,  # Low temp for stability
-                max_tokens=500,   # Reduced max_tokens for brevity
+                temperature=0.1,  # Lower temperature for more deterministic output
+                max_tokens=200,   # Limit output length
                 top_p=0.9
             )
             answer = chat.choices[0].message.content.strip()
+            # Clean up any potential artifacts if the model still outputs them
+            if answer.startswith("Answer:"):
+                answer = answer[7:].strip()
+            
             print(f"✅ Groq answer ({len(answer)} chars): {answer[:80]}...")
             return answer
 
