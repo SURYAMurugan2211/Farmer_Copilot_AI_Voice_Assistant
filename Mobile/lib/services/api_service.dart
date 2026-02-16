@@ -4,13 +4,14 @@ import '../models/api_models.dart';
 
 class ApiService {
   // Use localhost for web/desktop, 10.0.2.2 for Android emulator
-  static final String baseUrl = kIsWeb ? 'http://localhost:8000' : 'http://10.0.2.2:8000';
+  static final String _baseUrl = kIsWeb ? 'http://localhost:8000' : 'http://10.0.2.2:8000';
+  String get baseUrl => _baseUrl;
   static const String mobileApiPath = '/api/mobile';
   
   final Dio _dio = Dio();
   
   ApiService() {
-    _dio.options.baseUrl = baseUrl;
+    _dio.options.baseUrl = _baseUrl;
     _dio.options.connectTimeout = const Duration(seconds: 60);
     _dio.options.receiveTimeout = const Duration(seconds: 120);
     

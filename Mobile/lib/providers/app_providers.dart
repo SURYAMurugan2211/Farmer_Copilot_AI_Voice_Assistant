@@ -70,11 +70,23 @@ class SelectedLanguageNotifier extends StateNotifier<String> {
   }
 }
 
-// Supported Languages Provider
+// Supported Languages Provider with Fallback
 final supportedLanguagesProvider = FutureProvider<List<Language>>((ref) async {
-  final apiService = ref.read(apiServiceProvider);
-  final response = await apiService.getSupportedLanguages();
-  return response.languages;
+  try {
+    final apiService = ref.read(apiServiceProvider);
+    final response = await apiService.getSupportedLanguages();
+    return response.languages;
+  } catch (e) {
+    // Fallback if API fails (e.g. valid when offline or starting up)
+    return [
+      Language(code: 'en', name: 'English', native: 'English'),
+      Language(code: 'ta', name: 'Tamil', native: 'தமிழ்'),
+      Language(code: 'hi', name: 'Hindi', native: 'हिन्दी'),
+      Language(code: 'te', name: 'Telugu', native: 'తెలుగు'),
+      Language(code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ'),
+      Language(code: 'ml', name: 'Malayalam', native: 'മലയാളം'),
+    ];
+  }
 });
 
 // Query History Provider

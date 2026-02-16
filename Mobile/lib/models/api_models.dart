@@ -78,7 +78,7 @@ class TextQueryResponse {
       query: json['query'],
       language: json['language'],
       answerText: json['answer_text'],
-      audioUrl: json['audio_url'],
+      audioUrl: json['audio_url'] ?? json['response_audio_url'],
       intent: intentValue,
       entities: json['entities'],
       sources: json['sources'] != null
@@ -140,7 +140,7 @@ class VoiceQueryResponse {
       transcribedText: json['transcribed_text'],
       detectedLanguage: json['detected_language'] ?? json['language'],
       answerText: json['answer_text'],
-      audioUrl: json['audio_url'],
+      audioUrl: json['audio_url'] ?? json['response_audio_url'],
       intent: intentValue,
       entities: json['entities'],
       retrievedSources: json['retrieved_sources'],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/theme.dart';
 import '../providers/app_providers.dart';
-import '../widgets/language_selector.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -11,9 +11,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _locationController = TextEditingController();
 
   @override
   void dispose() {
@@ -25,337 +25,419 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider);
-    final selectedLanguage = ref.watch(selectedLanguageProvider);
-    final supportedLanguages = ref.watch(supportedLanguagesProvider);
+    final userAsync = ref.watch(currentUserProvider);
+    final isConnected = ref.watch(connectionStatusProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Profile Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'User Profile',
-                      style: Theme.of(context).textTheme.titleLarge,
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+
+              // Header
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.accentGreen.withValues(alpha: 0.12),
                     ),
-                    const SizedBox(height: 16),
-                    
-                    currentUser.when(
-                      data: (user) {
-                        if (user == null) {
-                          return _buildRegistrationForm();
-                        } else {
-                          return _buildUserProfile(user);
-                        }
-                      },
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (error, stack) => Column(
-                        children: [
-                          Text('Error: $error'),
-                          const SizedBox(height: 16),
-                          _buildRegistrationForm(),
+                    child: const Icon(Icons.person_rounded,
+                        color: AppTheme.accentGreen, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Profile',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Manage your account',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Connection status
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: AppTheme.glassCard(opacity: 0.08),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isConnected ? AppTheme.accentGreen : Colors.red,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isConnected ? AppTheme.accentGreen : Colors.red)
+                                .withValues(alpha: 0.5),
+                            blurRadius: 6,
+                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Language Settings
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Language Settings',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    supportedLanguages.when(
-                      data: (languages) => LanguageSelector(
-                        languages: languages,
-                        selectedLanguage: selectedLanguage,
-                        onLanguageChanged: (language) {
-                          ref.read(selectedLanguageProvider.notifier).setLanguage(language);
-                        },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isConnected ? 'Connected to Server' : 'Disconnected',
+                            style: TextStyle(
+                              color: isConnected
+                                  ? AppTheme.accentGreen
+                                  : Colors.red.shade300,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            isConnected
+                                ? 'All services running'
+                                : 'Check your connection',
+                            style: TextStyle(
+                              color: AppTheme.textMuted.withValues(alpha: 0.6),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                      loading: () => const CircularProgressIndicator(),
-                      error: (error, stack) => Text('Error loading languages: $error'),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // App Information
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'App Information',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    ListTile(
-                      leading: const Icon(Icons.info),
-                      title: const Text('Version'),
-                      subtitle: const Text('1.0.0'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    
-                    ListTile(
-                      leading: const Icon(Icons.agriculture),
-                      title: const Text('About Farmer Copilot'),
-                      subtitle: const Text('AI-powered agricultural assistant'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    
-                    ListTile(
-                      leading: const Icon(Icons.language),
-                      title: const Text('Supported Languages'),
-                      subtitle: const Text('English, Tamil, Hindi, Telugu, Kannada, Malayalam'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Actions
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Actions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    ListTile(
-                      leading: const Icon(Icons.refresh),
-                      title: const Text('Check Connection'),
-                      subtitle: const Text('Test connection to Farmer Copilot server'),
-                      contentPadding: EdgeInsets.zero,
-                      onTap: () {
-                        ref.read(connectionStatusProvider.notifier).checkConnection();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Checking connection...')),
-                        );
-                      },
-                    ),
-                    
-                    ListTile(
-                      leading: const Icon(Icons.clear_all),
-                      title: const Text('Clear History'),
-                      subtitle: const Text('Remove all query history'),
-                      contentPadding: EdgeInsets.zero,
-                      onTap: () {
-                        _showClearHistoryDialog();
-                      },
-                    ),
-                    
-                    if (currentUser.value != null)
-                      ListTile(
-                        leading: const Icon(Icons.logout),
-                        title: const Text('Logout'),
-                        subtitle: const Text('Sign out of your account'),
-                        contentPadding: EdgeInsets.zero,
-                        onTap: () {
-                          _showLogoutDialog();
-                        },
+                    GestureDetector(
+                      onTap: () =>
+                          ref.read(connectionStatusProvider.notifier).checkConnection(),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                        ),
+                        child: const Icon(Icons.refresh_rounded,
+                            color: AppTheme.accentGreen, size: 18),
                       ),
+                    ),
                   ],
                 ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // User profile section
+              userAsync.when(
+                data: (user) {
+                  if (user != null) {
+                    return _buildUserCard(user);
+                  }
+                  return _buildRegistrationForm();
+                },
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(color: AppTheme.accentGreen),
+                  ),
+                ),
+                error: (e, _) => _buildRegistrationForm(),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Features section
+              const Text(
+                'Features',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              _featureTile(Icons.mic_rounded, 'Voice Queries',
+                  'Ask in your own language', AppTheme.accentGreen),
+              _featureTile(Icons.translate_rounded, 'Multi-Language',
+                  'English, Tamil, Hindi & more', AppTheme.tealAccent),
+              _featureTile(Icons.agriculture_rounded, 'Farming AI',
+                  'Expert crop & pest advice', AppTheme.emerald),
+              _featureTile(Icons.history_rounded, 'Query History',
+                  'Track all your questions', AppTheme.gold),
+
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(dynamic user) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: AppTheme.glassCard(opacity: 0.08),
+      child: Column(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [AppTheme.accentGreen, AppTheme.emerald],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accentGreen.withValues(alpha: 0.3),
+                  blurRadius: 14,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                (user.name ?? 'U')[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            user.name ?? 'Farmer',
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            user.phoneNumber ?? '',
+            style: TextStyle(
+              color: AppTheme.textMuted.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
+          ),
+          if (user.location != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              '📍 ${user.location}',
+              style: TextStyle(
+                color: AppTheme.textMuted.withValues(alpha: 0.6),
+                fontSize: 13,
               ),
             ),
           ],
-        ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => ref.read(currentUserProvider.notifier).logout(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+              ),
+              child: Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.red.shade300,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildRegistrationForm() {
-    return Column(
-      children: [
-        TextField(
-          controller: _nameController,
-          decoration: const InputDecoration(
-            labelText: 'Full Name',
-            border: OutlineInputBorder(),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: AppTheme.glassCard(opacity: 0.08),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Quick Registration',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        
-        TextField(
-          controller: _phoneController,
-          decoration: const InputDecoration(
-            labelText: 'Phone Number',
-            border: OutlineInputBorder(),
+          const SizedBox(height: 4),
+          Text(
+            'Optional — saves your query history',
+            style: TextStyle(
+              color: AppTheme.textMuted.withValues(alpha: 0.6),
+              fontSize: 13,
+            ),
           ),
-          keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: 16),
-        
-        TextField(
-          controller: _locationController,
-          decoration: const InputDecoration(
-            labelText: 'Location (Optional)',
-            border: OutlineInputBorder(),
+          const SizedBox(height: 20),
+
+          _inputField(_nameController, 'Full Name', Icons.person_outline_rounded),
+          const SizedBox(height: 12),
+          _inputField(_phoneController, 'Phone Number', Icons.phone_outlined),
+          const SizedBox(height: 12),
+          _inputField(_locationController, 'Location (optional)', Icons.location_on_outlined),
+
+          const SizedBox(height: 20),
+
+          SizedBox(
+            width: double.infinity,
+            child: GestureDetector(
+              onTap: _register,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.accentGreen, AppTheme.emerald],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.accentGreen.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    'Register',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _registerUser,
-            child: const Text('Register'),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildUserProfile(user) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          leading: const Icon(Icons.person),
-          title: const Text('Name'),
-          subtitle: Text(user.name),
-          contentPadding: EdgeInsets.zero,
-        ),
-        
-        ListTile(
-          leading: const Icon(Icons.phone),
-          title: const Text('Phone'),
-          subtitle: Text(user.phoneNumber),
-          contentPadding: EdgeInsets.zero,
-        ),
-        
-        if (user.location != null)
-          ListTile(
-            leading: const Icon(Icons.location_on),
-            title: const Text('Location'),
-            subtitle: Text(user.location!),
-            contentPadding: EdgeInsets.zero,
+  Widget _inputField(
+      TextEditingController controller, String hint, IconData icon) {
+    return Container(
+      decoration: AppTheme.glassInput(),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: AppTheme.textMuted.withValues(alpha: 0.5),
+            fontSize: 14,
           ),
-        
-        ListTile(
-          leading: const Icon(Icons.language),
-          title: const Text('Language'),
-          subtitle: Text(user.language),
-          contentPadding: EdgeInsets.zero,
+          prefixIcon: Icon(icon, color: AppTheme.textMuted, size: 20),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-        
-        ListTile(
-          leading: const Icon(Icons.calendar_today),
-          title: const Text('Member Since'),
-          subtitle: Text(user.createdAt.toString().split(' ')[0]),
-          contentPadding: EdgeInsets.zero,
-        ),
-      ],
+      ),
     );
   }
 
-  void _registerUser() {
+  Widget _featureTile(IconData icon, String title, String subtitle, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: AppTheme.textMuted.withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.check_circle_rounded, color: color, size: 20),
+        ],
+      ),
+    );
+  }
+
+  void _register() {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final location = _locationController.text.trim();
 
     if (name.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in required fields')),
+        SnackBar(
+          content: const Text('Name and phone are required'),
+          backgroundColor: AppTheme.cardColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
 
+    final language = ref.read(selectedLanguageProvider);
     ref.read(currentUserProvider.notifier).registerUser(
-      phoneNumber: phone,
-      name: name,
-      language: ref.read(selectedLanguageProvider),
-      location: location.isEmpty ? null : location,
-    );
-  }
-
-  void _showClearHistoryDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear History'),
-        content: const Text('Are you sure you want to clear all query history?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(queryHistoryProvider.notifier).clearHistory();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('History cleared')),
-              );
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(currentUserProvider.notifier).logout();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logged out successfully')),
-              );
-            },
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
+          phoneNumber: phone,
+          name: name,
+          language: language,
+          location: location.isEmpty ? null : location,
+        );
   }
 }
