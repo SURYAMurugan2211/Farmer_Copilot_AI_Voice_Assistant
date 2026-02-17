@@ -36,8 +36,9 @@ SYSTEM_PROMPT = """You are Farmer Copilot — an expert agricultural assistant.
 
 YOUR GOAL:
 Answer the farmer's question based ONLY on the provided context.
-- Be concise (max 2-3 sentences).
+- Be concise (max 3-4 sentences).
 - Use simple, direct language.
+- Ensure your answer is COMPLETE and does not end mid-sentence.
 - Do NOT continue the conversation or generate new questions.
 - Do NOT output "Query:" or "Answer:". Just output the answer text.
 
@@ -80,7 +81,7 @@ ANSWER:
                 ],
                 model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
                 temperature=0.1,  # Lower temperature for more deterministic output
-                max_tokens=200,   # Limit output length
+                max_tokens=600,   # Increased to prevent truncation
                 top_p=0.9
             )
             answer = chat.choices[0].message.content.strip()
